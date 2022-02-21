@@ -34,7 +34,7 @@ namespace SmileAlert
 
         async Task Count()
         {
-            var num = 0;
+            var captureCount = 0;
             await Task.Run(() =>
             {
                 //
@@ -54,11 +54,11 @@ namespace SmileAlert
                         //
                         // キャプチャ回数をカウント
                         //
-                        num++;
+                        captureCount++;
                         ResultLabel.Dispatcher.BeginInvoke(
                             new Action(() =>
                             {
-                                ResultLabel.Content = num.ToString();
+                                ResultLabel.Content = captureCount.ToString();
                             })
                         );
 
