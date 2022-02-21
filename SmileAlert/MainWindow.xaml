@@ -1,0 +1,14 @@
+﻿<Window x:Class="SmileAlert.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SmileAlert"
+        mc:Ignorable="d"
+        Title="SmileAlert" Height="450" Width="800">
+    <Grid>
+        <Button Content="画像を送信" Click="Button_Click" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="329,364,388,35" Width="75"/>
+        <Label x:Name="ResultLabel" Content="結果" HorizontalAlignment="Left" Margin="486,89,0,0" VerticalAlignment="Top" RenderTransformOrigin="5.321,0.51"/>
+        <Image x:Name="Monitor" HorizontalAlignment="Left" Height="289" Margin="59,39,0,0" VerticalAlignment="Top" Width="286"/>
+    </Grid>
+</Window>
