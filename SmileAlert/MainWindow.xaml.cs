@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Authentication;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -74,46 +72,58 @@ namespace SmileAlert
 
                     // POST通信のbodyに含めるFormDataを作成
                     var formDataBody = new MultipartFormDataContent("----FLICKR_MIME_20140415120129--");
-                    
+                    formDataBody.Headers.ContentType.MediaType = "multipart/form-data";
+                    // formDataBody.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+
                     StringContent keyContent = new StringContent(API_KEY);
                     StringContent secretContent = new StringContent(API_SECRET);
                     StringContent imgContent = new StringContent(base64Img);
-                    keyContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-                    secretContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+                    // keyContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+                    // secretContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
                     formDataBody.Add(keyContent, "api_key");
                     formDataBody.Add(secretContent, "api_secret");
                     formDataBody.Add(imgContent, "image_base64");
 
                     // リクエストを作成
-                    var uri = new Uri(FACE_DETECT_URL);
-                    var request = new HttpRequestMessage(HttpMethod.Post, uri);
-                    
+                    // var uri = new Uri(FACE_DETECT_URL);
+                    var request = new HttpRequestMessage(HttpMethod.Post, FACE_DETECT_URL);
+ 
                     // デバッグ用
                     // var request = new HttpRequestMessage(HttpMethod.Post, "http://httpbin.org/post");
                     
-                    request.Content = formDataBody;
+                    request.Content = imgContent;
+                    Debug.Print(request.Content.Headers.ContentType.ToString());
 
-                    // HTTP通信
-                    await formDataBody.ReadAsStringAsync(); // 儀式1
-                    client.DefaultRequestHeaders.ExpectContinue = false; // 儀式2
+                    // URIエンコードして送る
+                    Dictionary<String, String> formDict = new Dictionary<string, string>();
+                    formDict.Add("api_key", API_KEY);
+                    formDict.Add("api_secret", API_SECRET);
+                    formDict.Add("image_base64", base64Img);
+
+                    var encodedItems = formDict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
+                    var encodedContent = new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
+
 
                     String response = "";
                     string responseContent = "";
                     try
                     {
-                        // var res = await client.PostAsync(FACE_DETECT_URL, formDataBody);
+                        var res = await client.PostAsync(FACE_DETECT_URL, encodedContent);
                         // var response = await client.PostAsync("http://httpbin.org/post", formDataBody);
 
-                        var res = await client.SendAsync(request);
+                        client.DefaultRequestHeaders.Add("api_key", API_KEY);
+                        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("multipart/form-data"));
+
+                        // var res = await client.SendAsync(request);
                         response = res.ToString();
                         responseContent = await res.Content.ReadAsStringAsync();
                     }
-                    catch (InvalidOperationException e)
+                    catch (Exception e)
                     {
                         Debug.Print(e.Message);
                     }
                     
-                    request.Dispose();
+                    // request.Dispose();
                     formDataBody.Dispose();
                     keyContent.Dispose();
                     secretContent.Dispose();
