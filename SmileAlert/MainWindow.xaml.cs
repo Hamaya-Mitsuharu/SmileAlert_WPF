@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net;
 using System.Net.Http;
-using System.Net.Http.Json;
+using System.Net.Http.Headers;
+using System.Security.Authentication;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -18,6 +20,7 @@ using System.Windows.Shapes;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
 using System.Threading;
+using System.Diagnostics;
 
 
 namespace SmileAlert
@@ -28,167 +31,122 @@ namespace SmileAlert
     public partial class MainWindow : System.Windows.Window
     {
         Mat matFrame;
-        private const string ATTRIBUTES = "gender,age";
+        const string FACE_DETECT_URL = "https://api-us.faceplusplus.com/facepp/v3/detect";
+        const string API_KEY = "gvtqsN4gF5kfSQwRm3bEbFYgSSsrLGwH";
+        const string API_SECRET = "52HOOEt4fb1-JAI5kHjRDWNPSBkFOyK3";
 
         Task task;
         public MainWindow()
         {
             InitializeComponent();
-            task = Count();
+            task = CaptureAndSend(); // 非同期処理を開始
         }
 
-        async Task Count()
+        async Task CaptureAndSend()
         {
-            var captureCount = 0;
+            // １秒周期で非同期実行
             await Task.Run(async () =>
-           {
-               //
-               // カメラを起動
-               //
-               using (var capture = new VideoCapture())
-               {
-                   capture.Open(0);
-
-                   if (!capture.IsOpened())
-                   {
-                       throw new Exception("capture initialization failed");
-                   }
-
-                   while (true)
-                   {
-                       //
-                       // キャプチャ回数をカウント
-                       //
-                       /*
-                       captureCount++;
-                       await ResultLabel.Dispatcher.BeginInvoke(
-                           new Action(() =>
-                           {
-                               ResultLabel.Content = captureCount.ToString();
-                           })
-                       );
-                       */
-
-                       //
-                       // キャプチャ
-                       //
-                       matFrame = new Mat();
-                       capture.Read(matFrame);
-                       if (matFrame.Empty())
-                       {
-                           // return null;
-                       }
-
-                       //
-                       // Mat -> Bytes -> Base64
-                       //
-                       var bytesImg = matFrame.ToBytes();
-                       var base64Img = Convert.ToBase64String(bytesImg);
-
-                       var client = new HttpClient();
-                       // var content = new StringContent(base64Img);
-
-                       // HTTPヘッダの設定
-                       var url = "https://api-us.faceplusplus.com/facepp/v3/detect";
-                       var API_KEY = "gvtqsN4gF5kfSQwRm3bEbFYgSSsrLGwH";
-                       var API_SECRET = "52HOOEt4fb1-JAI5kHjRDWNPSBkFOyK3";
-                       
-                       // request.Headers.Add("Content-Type", "multipart/form-data; boundary=----WebKitFormBoundaryxxxxyz");
-                       // request.Headers.Add("api_key", API_KEY);
-                       // request.Headers.Add("api_secret", API_SECRET);
-                       // request.Headers.Add("image_base64", base64Img);
-                       // request.Headers.Add("return_attributes", ATTRIBUTES);
-
-                       string res = "";
-
-                       var contentDict = new Dictionary<string, string>();
-                       contentDict.Add("api_key", API_KEY);
-                       contentDict.Add("api_secret", API_SECRET);
-                       contentDict.Add("image_base64", base64Img);
-
-                       using (var request = new HttpRequestMessage(HttpMethod.Post, url))
-                       using (var jsonContent = JsonContent.Create(contentDict))
-                       {
-                           request.Content = jsonContent;
-                           request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("multipart/form-data");
-                           // request.Content.Headers.Add("api_key", API_KEY);
-                           // request.Content.Headers.Add("api_secret", API_SECRET);
-
-                           var result = await client.SendAsync(request);
-                           var status = result.StatusCode.ToString();
-                           var json = await result.Content.ReadAsStringAsync();
-                           var isSuccess = result.IsSuccessStatusCode.ToString();
-                           res = result.ToString() + "\n" + status + "\n" + json + "\n" + isSuccess;
-                       }
-                       
-                       await ResultLabel.Dispatcher.BeginInvoke(
-                           new Action(() =>
-                           {
-                               ResultLabel.Content = res;
-                           })
-                       );
-
-
-                       //
-                       // 画面に表示
-                       //
-                       await Monitor.Dispatcher.BeginInvoke(
-                          new Action(() =>
-                          {
-                              Monitor.Source = MatToImageSource(matFrame);
-                          })
-                      );
-                       matFrame.Dispose();
-
-                       Thread.Sleep(1000);
-                   }
-               }
-           });
-        }
-
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-            // MessageBox.Show("ボタンがクリックされました。");
-            ResultLabel.Content = "クリックされました";
-            UpdateImage();
-        }
-
-        void UpdateImage()
-        {
-            Capture();
-            Monitor.Source = MatToImageSource(matFrame);
-            matFrame.Dispose();
-        }
-
-        /// <summary>
-        /// カメラ画像をキャプチャし、フレームに入れる
-        /// </summary>
-        public void Capture()
-        {
-            //
-            // カメラを起動
-            //
-            using (var capture = new VideoCapture())
             {
+                // カメラキャプチャとHTTPリクエストの下準備
+                var capture = new VideoCapture();
                 capture.Open(0);
-
                 if (!capture.IsOpened())
                 {
                     throw new Exception("capture initialization failed");
                 }
+                var client = new HttpClient();
 
-                //
-                // フレーム画像を取得
-                //
-                matFrame = new Mat();
-                capture.Read(matFrame);
-                if (matFrame.Empty())
+                while (true)
                 {
-                    // return null;
+                    // カメラ画像をキャプチャし、Matデータとして取得
+                    matFrame = new Mat();
+                    capture.Read(matFrame);
+                    if (matFrame.Empty())
+                    {
+                        Debug.Print("capture was empty");
+                        continue;
+                    }
+
+                    // バイナリ画像データへ変換
+                    // Mat -> Bytes -> Base64
+                    var bytesImg = matFrame.ToBytes();
+                    var base64Img = Convert.ToBase64String(bytesImg);
+
+                    // POST通信のbodyに含めるFormDataを作成
+                    var formDataBody = new MultipartFormDataContent("----FLICKR_MIME_20140415120129--");
+                    
+                    StringContent keyContent = new StringContent(API_KEY);
+                    StringContent secretContent = new StringContent(API_SECRET);
+                    StringContent imgContent = new StringContent(base64Img);
+                    keyContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+                    secretContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+                    formDataBody.Add(keyContent, "api_key");
+                    formDataBody.Add(secretContent, "api_secret");
+                    formDataBody.Add(imgContent, "image_base64");
+
+                    // リクエストを作成
+                    var uri = new Uri(FACE_DETECT_URL);
+                    var request = new HttpRequestMessage(HttpMethod.Post, uri);
+                    
+                    // デバッグ用
+                    // var request = new HttpRequestMessage(HttpMethod.Post, "http://httpbin.org/post");
+                    
+                    request.Content = formDataBody;
+
+                    // HTTP通信
+                    await formDataBody.ReadAsStringAsync(); // 儀式1
+                    client.DefaultRequestHeaders.ExpectContinue = false; // 儀式2
+
+                    String response = "";
+                    string responseContent = "";
+                    try
+                    {
+                        // var res = await client.PostAsync(FACE_DETECT_URL, formDataBody);
+                        // var response = await client.PostAsync("http://httpbin.org/post", formDataBody);
+
+                        var res = await client.SendAsync(request);
+                        response = res.ToString();
+                        responseContent = await res.Content.ReadAsStringAsync();
+                    }
+                    catch (InvalidOperationException e)
+                    {
+                        Debug.Print(e.Message);
+                    }
+                    
+                    request.Dispose();
+                    formDataBody.Dispose();
+                    keyContent.Dispose();
+                    secretContent.Dispose();
+                    // imgContent.Dispose();
+
+                    // 実行画面に文字列を表示
+                    string showResult = response + "\n" + responseContent;
+
+                    await ResultLabel.Dispatcher.BeginInvoke(
+                        new Action(() =>
+                        {
+                            ResultLabel.Content = showResult;
+                        })
+                    );
+
+                    // 実行画面にカメラ画像を表示
+                    await Monitor.Dispatcher.BeginInvoke(
+                       new Action(() =>
+                       {
+                           Monitor.Source = MatToImageSource(matFrame);
+                       })
+                    );
+                    matFrame.Dispose();
+
+                    Thread.Sleep(5000);
                 }
-            }
+                // -- whileループ終了 -- 
+                capture.Dispose();
+                client.Dispose();
+            });
         }
 
+        // 下の MatToImageSource() メソッドに使う
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
         public static extern bool DeleteObject(System.IntPtr hObject);
 
@@ -218,5 +176,50 @@ namespace SmileAlert
                 DeleteObject(hBitmap);
             }
         }
+
+
+
+        //private void Button_Click(object sender, RoutedEventArgs e)
+        //{
+        //    // MessageBox.Show("ボタンがクリックされました。");
+        //    ResultLabel.Content = "クリックされました";
+        //    UpdateImage();
+        //}
+
+        //void UpdateImage()
+        //{
+        //    Capture();
+        //    Monitor.Source = MatToImageSource(matFrame);
+        //    matFrame.Dispose();
+        //}
+
+        ///// <summary>
+        ///// カメラ画像をキャプチャし、フレームに入れる
+        ///// </summary>
+        //public void Capture()
+        //{
+        //    //
+        //    // カメラを起動
+        //    //
+        //    using (var capture = new VideoCapture())
+        //    {
+        //        capture.Open(0);
+
+        //        if (!capture.IsOpened())
+        //        {
+        //            throw new Exception("capture initialization failed");
+        //        }
+
+        //        //
+        //        // フレーム画像を取得
+        //        //
+        //        matFrame = new Mat();
+        //        capture.Read(matFrame);
+        //        if (matFrame.Empty())
+        //        {
+        //            // return null;
+        //        }
+        //    }
+        //}
     }
 }
