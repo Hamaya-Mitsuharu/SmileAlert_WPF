@@ -98,6 +98,12 @@ namespace SmileAlert
             });
         }
 
+        StringContent uriEncodeWithDict(Dictionary<string, string> dict)
+        {
+            var encodedItems = dict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
+            return new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
+        }
+
         async Task<string> PostIntoFacePP(HttpClient client, HttpContent content)
         {
             const string FACE_DETECT_URL = "https://api-us.faceplusplus.com/facepp/v3/detect";
@@ -109,31 +115,6 @@ namespace SmileAlert
             // Debug.Print(response);           // レスポンス内容
 
             return response;
-        }
-
-        async void ShowResultAndCapture(float smilingPercent, Mat matFrame)
-        {
-            // 実行画面に文字列を表示
-            await ResultLabel.Dispatcher.BeginInvoke(
-                new Action(() =>
-                {
-                    ResultLabel.Content = "笑顔率：" + smilingPercent.ToString();
-                })
-            );
-
-            // 実行画面にカメラ画像を表示
-            await Monitor.Dispatcher.BeginInvoke(
-               new Action(() =>
-               {
-                   Monitor.Source = MatToImageSource(matFrame);
-               })
-            );
-        }
-
-        StringContent uriEncodeWithDict(Dictionary<string, string> dict)
-        {
-            var encodedItems = dict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
-            return new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
         }
 
         float GetSmilingPercent(string response)
@@ -166,7 +147,26 @@ namespace SmileAlert
             return float.Parse(valueStr);
         }
 
-        // 下の MatToImageSource() メソッドに使う
+        async void ShowResultAndCapture(float smilingPercent, Mat matFrame)
+        {
+            // 実行画面に文字列を表示
+            await ResultLabel.Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    ResultLabel.Content = "笑顔率：" + smilingPercent.ToString();
+                })
+            );
+
+            // 実行画面にカメラ画像を表示
+            await Monitor.Dispatcher.BeginInvoke(
+               new Action(() =>
+               {
+                   Monitor.Source = MatToImageSource(matFrame);
+               })
+            );
+        }
+
+        // 下記の MatToImageSource() メソッドに使う
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
         static extern bool DeleteObject(System.IntPtr hObject);
 
