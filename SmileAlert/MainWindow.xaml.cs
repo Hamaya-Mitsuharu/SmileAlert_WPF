@@ -92,23 +92,8 @@ namespace SmileAlert
                     
                     float smilingPercent = GetSmilingPercent(response);
                     if (smilingPercent < 0.0f) continue; // 顔が見つからない場合
-                    
-                    // 実行画面に文字列を表示
-                    await ResultLabel.Dispatcher.BeginInvoke(
-                        new Action(() =>
-                        {
-                            ResultLabel.Content = "笑顔率：" + smilingPercent.ToString();
-                        })
-                    );
 
-                    // 実行画面にカメラ画像を表示
-                    await Monitor.Dispatcher.BeginInvoke(
-                       new Action(() =>
-                       {
-                           Monitor.Source = MatToImageSource(matFrame);
-                       })
-                    );
-                    matFrame.Dispose();
+                    ShowResultAndCapture(smilingPercent, matFrame);
 
                     Thread.Sleep(1);
                 }
@@ -116,6 +101,25 @@ namespace SmileAlert
                 capture.Dispose();
                 client.Dispose();
             });
+        }
+
+        async void ShowResultAndCapture(float smilingPercent, Mat matFrame)
+        {
+            // 実行画面に文字列を表示
+            await ResultLabel.Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    ResultLabel.Content = "笑顔率：" + smilingPercent.ToString();
+                })
+            );
+
+            // 実行画面にカメラ画像を表示
+            await Monitor.Dispatcher.BeginInvoke(
+               new Action(() =>
+               {
+                   Monitor.Source = MatToImageSource(matFrame);
+               })
+            );
         }
 
         StringContent uriEncodeWithDict(Dictionary<string, string> dict)
