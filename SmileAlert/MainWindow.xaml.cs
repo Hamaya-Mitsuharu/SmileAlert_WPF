@@ -74,18 +74,14 @@ namespace SmileAlert
                     var base64Img = Convert.ToBase64String(bytesImg);
 
                     // HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
-                    // 代わりにURIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら遅れる
-                    
-                    // form用データ
+                    // URIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら遅れる
                     Dictionary<String, String> formDict = new Dictionary<string, string>();
                     formDict.Add("api_key", API_KEY);
                     formDict.Add("api_secret", API_SECRET);
                     formDict.Add("image_base64", base64Img);
                     formDict.Add("return_attributes", "smiling");
 
-                    // URIエンコードする
-                    var encodedItems = formDict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
-                    var encodedContent = new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
+                    StringContent encodedContent = uriEncodeWithDict(formDict);
 
                     var res = await client.PostAsync(FACE_DETECT_URL, encodedContent);
                     var response = await res.Content.ReadAsStringAsync();
@@ -138,6 +134,12 @@ namespace SmileAlert
                 capture.Dispose();
                 client.Dispose();
             });
+        }
+
+        public StringContent uriEncodeWithDict(Dictionary<string, string> dict)
+        {
+            var encodedItems = dict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
+            return new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
         }
 
         // 下の MatToImageSource() メソッドに使う
