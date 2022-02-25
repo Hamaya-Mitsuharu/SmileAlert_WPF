@@ -32,7 +32,6 @@ namespace SmileAlert
     public partial class MainWindow : System.Windows.Window
     {
         Mat matFrame;
-        const string FACE_DETECT_URL = "https://api-us.faceplusplus.com/facepp/v3/detect";
         const string API_KEY = "gvtqsN4gF5kfSQwRm3bEbFYgSSsrLGwH";
         const string API_SECRET = "52HOOEt4fb1-JAI5kHjRDWNPSBkFOyK3";
 
@@ -68,27 +67,23 @@ namespace SmileAlert
                         continue;
                     }
 
-                    // バイナリ画像データへ変換
-                    // Mat -> Bytes -> Base64
+                    // face++で使えるbase64（バイナリ）に変換
                     var bytesImg = matFrame.ToBytes();
                     var base64Img = Convert.ToBase64String(bytesImg);
 
-                    // HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
-                    // URIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら遅れる
+                    /*
+                     * HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
+                     * URIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら送れる
+                     */
                     Dictionary<String, String> formDict = new Dictionary<string, string>();
                     formDict.Add("api_key", API_KEY);
                     formDict.Add("api_secret", API_SECRET);
                     formDict.Add("image_base64", base64Img);
                     formDict.Add("return_attributes", "smiling");
-
                     StringContent encodedContent = uriEncodeWithDict(formDict);
 
-                    var res = await client.PostAsync(FACE_DETECT_URL, encodedContent);
-                    var response = await res.Content.ReadAsStringAsync();
-                    // Debug.Print(res.ToString());     // リクエスト情報
-                    // Debug.Print(response);           // レスポンス
-
-
+                    string response = await PostIntoFacePP(client, encodedContent);
+                    encodedContent.Dispose();
                     
                     float smilingPercent = GetSmilingPercent(response);
                     if (smilingPercent < 0.0f) continue; // 顔が見つからない場合
@@ -101,6 +96,19 @@ namespace SmileAlert
                 capture.Dispose();
                 client.Dispose();
             });
+        }
+
+        async Task<string> PostIntoFacePP(HttpClient client, HttpContent content)
+        {
+            const string FACE_DETECT_URL = "https://api-us.faceplusplus.com/facepp/v3/detect";
+
+            var responseMessage = await client.PostAsync(FACE_DETECT_URL, content);
+            var response = await responseMessage.Content.ReadAsStringAsync();
+
+            // Debug.Print(res.ToString());     // レスポンス情報
+            // Debug.Print(response);           // レスポンス内容
+
+            return response;
         }
 
         async void ShowResultAndCapture(float smilingPercent, Mat matFrame)
@@ -162,11 +170,6 @@ namespace SmileAlert
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
         public static extern bool DeleteObject(System.IntPtr hObject);
 
-        /// <summary>
-        /// フレーム画像をImage.Sourceに使えるImageSourceにキャストする
-        /// </summary>
-        /// <param name="img"></param>
-        /// <returns></returns>
         public ImageSource MatToImageSource(Mat img)
         {
             // HBitmapに変換
