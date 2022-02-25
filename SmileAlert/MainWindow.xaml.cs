@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Encodings;
 using System.Threading.Tasks;
 using System.Net;
 using System.Net.Http;
@@ -19,7 +20,9 @@ using OpenCvSharp;
 using OpenCvSharp.Extensions;
 using System.Threading;
 using System.Diagnostics;
-
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 
 namespace SmileAlert
 {
@@ -61,7 +64,7 @@ namespace SmileAlert
                     capture.Read(matFrame);
                     if (matFrame.Empty())
                     {
-                        Debug.Print("capture was empty");
+                        Debug.Print("キャプチャ画像が空でした");
                         continue;
                     }
 
@@ -70,72 +73,53 @@ namespace SmileAlert
                     var bytesImg = matFrame.ToBytes();
                     var base64Img = Convert.ToBase64String(bytesImg);
 
-                    // POST通信のbodyに含めるFormDataを作成
-                    var formDataBody = new MultipartFormDataContent("----FLICKR_MIME_20140415120129--");
-                    formDataBody.Headers.ContentType.MediaType = "multipart/form-data";
-                    // formDataBody.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
-
-                    StringContent keyContent = new StringContent(API_KEY);
-                    StringContent secretContent = new StringContent(API_SECRET);
-                    StringContent imgContent = new StringContent(base64Img);
-                    // keyContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-                    // secretContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
-                    formDataBody.Add(keyContent, "api_key");
-                    formDataBody.Add(secretContent, "api_secret");
-                    formDataBody.Add(imgContent, "image_base64");
-
-                    // リクエストを作成
-                    // var uri = new Uri(FACE_DETECT_URL);
-                    var request = new HttpRequestMessage(HttpMethod.Post, FACE_DETECT_URL);
- 
-                    // デバッグ用
-                    // var request = new HttpRequestMessage(HttpMethod.Post, "http://httpbin.org/post");
+                    // HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
+                    // 代わりにURIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら遅れる
                     
-                    request.Content = imgContent;
-                    Debug.Print(request.Content.Headers.ContentType.ToString());
-
-                    // URIエンコードして送る
+                    // form用データ
                     Dictionary<String, String> formDict = new Dictionary<string, string>();
                     formDict.Add("api_key", API_KEY);
                     formDict.Add("api_secret", API_SECRET);
                     formDict.Add("image_base64", base64Img);
+                    formDict.Add("return_attributes", "smiling");
 
+                    // URIエンコードする
                     var encodedItems = formDict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
                     var encodedContent = new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
 
+                    var res = await client.PostAsync(FACE_DETECT_URL, encodedContent);
+                    var response = await res.Content.ReadAsStringAsync();
+                    // Debug.Print(res.ToString());     // リクエスト情報
+                    // Debug.Print(response);           // レスポンス
 
-                    String response = "";
-                    string responseContent = "";
-                    try
+                    // 笑顔率を表す"value"の値を取得する
+                    var index = response.IndexOf("value");
+                    if (index == -1)
                     {
-                        var res = await client.PostAsync(FACE_DETECT_URL, encodedContent);
-                        // var response = await client.PostAsync("http://httpbin.org/post", formDataBody);
-
-                        client.DefaultRequestHeaders.Add("api_key", API_KEY);
-                        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("multipart/form-data"));
-
-                        // var res = await client.SendAsync(request);
-                        response = res.ToString();
-                        responseContent = await res.Content.ReadAsStringAsync();
+                        Debug.Print("顔が見つかりませんでした");
+                        matFrame.Dispose();
+                        continue;
                     }
-                    catch (Exception e)
+                    index += "value".Length + 1; // 「"value":」の「:」の位置に移動する
+
+                    string valueStr = "";
+                    int loopCnt = 0;
+                    while (loopCnt < 10000)
                     {
-                        Debug.Print(e.Message);
+                        index++;
+                        if (response[index] == ',') break;
+                        valueStr += response[index];
+
+                        loopCnt++;
+                        if (loopCnt > 10000) Debug.Print("カンマが見つかりませんでした");
                     }
+                    float smilingPercent = float.Parse(valueStr);
                     
-                    // request.Dispose();
-                    formDataBody.Dispose();
-                    keyContent.Dispose();
-                    secretContent.Dispose();
-                    // imgContent.Dispose();
-
                     // 実行画面に文字列を表示
-                    string showResult = response + "\n" + responseContent;
-
                     await ResultLabel.Dispatcher.BeginInvoke(
                         new Action(() =>
                         {
-                            ResultLabel.Content = showResult;
+                            ResultLabel.Content = "笑顔率：" + smilingPercent.ToString();
                         })
                     );
 
@@ -148,7 +132,7 @@ namespace SmileAlert
                     );
                     matFrame.Dispose();
 
-                    Thread.Sleep(5000);
+                    Thread.Sleep(1);
                 }
                 // -- whileループ終了 -- 
                 capture.Dispose();
@@ -186,50 +170,5 @@ namespace SmileAlert
                 DeleteObject(hBitmap);
             }
         }
-
-
-
-        //private void Button_Click(object sender, RoutedEventArgs e)
-        //{
-        //    // MessageBox.Show("ボタンがクリックされました。");
-        //    ResultLabel.Content = "クリックされました";
-        //    UpdateImage();
-        //}
-
-        //void UpdateImage()
-        //{
-        //    Capture();
-        //    Monitor.Source = MatToImageSource(matFrame);
-        //    matFrame.Dispose();
-        //}
-
-        ///// <summary>
-        ///// カメラ画像をキャプチャし、フレームに入れる
-        ///// </summary>
-        //public void Capture()
-        //{
-        //    //
-        //    // カメラを起動
-        //    //
-        //    using (var capture = new VideoCapture())
-        //    {
-        //        capture.Open(0);
-
-        //        if (!capture.IsOpened())
-        //        {
-        //            throw new Exception("capture initialization failed");
-        //        }
-
-        //        //
-        //        // フレーム画像を取得
-        //        //
-        //        matFrame = new Mat();
-        //        capture.Read(matFrame);
-        //        if (matFrame.Empty())
-        //        {
-        //            // return null;
-        //        }
-        //    }
-        //}
     }
 }
