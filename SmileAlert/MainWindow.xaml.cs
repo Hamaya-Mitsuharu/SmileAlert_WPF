@@ -88,28 +88,10 @@ namespace SmileAlert
                     // Debug.Print(res.ToString());     // リクエスト情報
                     // Debug.Print(response);           // レスポンス
 
-                    // 笑顔率を表す"value"の値を取得する
-                    var index = response.IndexOf("value");
-                    if (index == -1)
-                    {
-                        Debug.Print("顔が見つかりませんでした");
-                        matFrame.Dispose();
-                        continue;
-                    }
-                    index += "value".Length + 1; // 「"value":」の「:」の位置に移動する
 
-                    string valueStr = "";
-                    int loopCnt = 0;
-                    while (loopCnt < 10000)
-                    {
-                        index++;
-                        if (response[index] == ',') break;
-                        valueStr += response[index];
-
-                        loopCnt++;
-                        if (loopCnt > 10000) Debug.Print("カンマが見つかりませんでした");
-                    }
-                    float smilingPercent = float.Parse(valueStr);
+                    
+                    float smilingPercent = GetSmilingPercent(response);
+                    if (smilingPercent < 0.0f) continue; // 顔が見つからない場合
                     
                     // 実行画面に文字列を表示
                     await ResultLabel.Dispatcher.BeginInvoke(
@@ -136,10 +118,40 @@ namespace SmileAlert
             });
         }
 
-        public StringContent uriEncodeWithDict(Dictionary<string, string> dict)
+        StringContent uriEncodeWithDict(Dictionary<string, string> dict)
         {
             var encodedItems = dict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
             return new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
+        }
+
+        float GetSmilingPercent(string response)
+        {
+            // 笑顔率を表す"value"の値を取得する
+            var index = response.IndexOf("value");
+            if (index == -1)
+            {
+                Debug.Print("顔が見つかりませんでした");
+                matFrame.Dispose();
+                return -1f;
+            }
+            index += "value".Length + 1; // 「"value":」の「:」の位置に移動する
+
+            string valueStr = "";
+            int loopCnt = 0;
+            while (loopCnt < 10000)
+            {
+                index++;
+                if (response[index] == ',') break;
+                valueStr += response[index];
+
+                loopCnt++;
+                if (loopCnt > 10000)
+                {
+                    Debug.Print("異常：カンマが見つかりませんでした");
+                    return -1f;
+                }
+            }
+            return float.Parse(valueStr);
         }
 
         // 下の MatToImageSource() メソッドに使う
