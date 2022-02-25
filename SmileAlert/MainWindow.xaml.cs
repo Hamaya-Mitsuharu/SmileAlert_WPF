@@ -168,9 +168,9 @@ namespace SmileAlert
 
         // 下の MatToImageSource() メソッドに使う
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
-        public static extern bool DeleteObject(System.IntPtr hObject);
+        static extern bool DeleteObject(System.IntPtr hObject);
 
-        public ImageSource MatToImageSource(Mat img)
+        ImageSource MatToImageSource(Mat img)
         {
             // HBitmapに変換
             var hBitmap = (img.ToBitmap()).GetHbitmap();
