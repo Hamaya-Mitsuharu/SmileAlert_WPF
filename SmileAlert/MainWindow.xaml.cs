@@ -180,7 +180,7 @@ namespace SmileAlert
 
         private void Slider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
         {
-            
+            SliderValue.Content = e.NewValue.ToString("F0");
         }
     }
 }
