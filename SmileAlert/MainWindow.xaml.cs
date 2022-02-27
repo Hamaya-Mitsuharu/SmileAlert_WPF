@@ -177,5 +177,10 @@ namespace SmileAlert
                 DeleteObject(hBitmap);
             }
         }
+
+        private void Slider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
+        {
+            
+        }
     }
 }
