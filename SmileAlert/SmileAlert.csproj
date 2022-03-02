@@ -160,6 +160,9 @@
   <ItemGroup>
     <Resource Include="Source\SmileValueTest.gif" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Source\alert.mp3" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

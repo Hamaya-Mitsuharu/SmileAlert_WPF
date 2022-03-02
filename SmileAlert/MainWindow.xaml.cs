@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Controls;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -26,6 +27,23 @@ namespace SmileAlert
         {
             InitializeComponent();
             task = CaptureAndSend(); // 非同期処理を開始
+        }
+
+        /// <summary>
+        /// コンテンツが描画されたあと
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Window_ContentRendered(object sender, EventArgs e)
+        {
+            // 音声ファイルをロードします。
+            MediaAudio.LoadedBehavior = MediaState.Stop;
+            MediaAudio.Source = new Uri(@"<音声ファイル名>", UriKind.Relative);
+            // 音声再生
+            // MediaAudio.LoadedBehavior = MediaState.Manual;
+            // MediaAudio.Play();
+            // 音声停止
+            // MediaAudio.Stop();
         }
 
         async Task CaptureAndSend()
@@ -155,7 +173,7 @@ namespace SmileAlert
         // 下記の MatToImageSource() メソッドに使う
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
         static extern bool DeleteObject(System.IntPtr hObject);
-
+        
         ImageSource MatToImageSource(Mat img)
         {
             // HBitmapに変換

@@ -19,5 +19,6 @@
                 Maximum="100"
                 ValueChanged="Slider_ValueChanged"
                 HorizontalAlignment="Left" VerticalAlignment="Top" Margin="449,310,0,0"/>
+        <MediaElement Name="MediaAudio"  HorizontalAlignment="Left" Height="100" Margin="591,89,0,0" VerticalAlignment="Top" Width="100"/>
     </Grid>
 </Window>
