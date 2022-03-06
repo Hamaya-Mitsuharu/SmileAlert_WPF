@@ -29,22 +29,6 @@ namespace SmileAlert
             task = CaptureAndSend(); // 非同期処理を開始
         }
 
-        /// <summary>
-        /// コンテンツが描画されたあと
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void Window_ContentRendered(object sender, EventArgs e)
-        {
-            // 音声ファイルをロードします。
-            // MediaAudio.LoadedBehavior = MediaState.Stop;
-            // 音声再生
-            // MediaAudio.LoadedBehavior = MediaState.Manual;
-            MediaAudio.Play();
-            // 音声停止
-            // MediaAudio.Stop();
-        }
-
         async Task CaptureAndSend()
         {
             // １秒周期で非同期実行
@@ -87,9 +71,11 @@ namespace SmileAlert
                     float smilingPercent = GetSmilingPercent(response);
                     if (smilingPercent < 0.0f) continue; // 顔が見つからない場合
 
+                    CheckSmilingPercent(smilingPercent);
+
                     ShowResultAndCapture(smilingPercent, matFrame);
 
-                    Thread.Sleep(1);
+                    Thread.Sleep(3000);
                 }
                 // -- whileループ終了 -- 
                 capture.Dispose();
@@ -148,6 +134,28 @@ namespace SmileAlert
                 }
             }
             return float.Parse(valueStr);
+        }
+
+        async void CheckSmilingPercent(float smilingPercent)
+        {
+            // 音声ファイルをロードします。
+            // MediaAudio.LoadedBehavior = MediaState.Stop;
+            // MediaAudio.Source = new Uri("E:\MyFiles\Projects\cSharp\SmileAlert\SmileAlert\Source\alert.wav");
+
+            await Monitor.Dispatcher.BeginInvoke(
+               new Action(() =>
+               {
+                   // 笑顔率が閾値より小さい場合警告
+                   if (smilingPercent >= ThresholdSlider.Value) return;
+
+                   Debug.Print("音を鳴らします");
+                   MediaAudio.LoadedBehavior = MediaState.Stop;
+                   MediaAudio.Source = new Uri("E:/MyFiles/Projects/cSharp/SmileAlert/SmileAlert/Source/alert.wav");
+                   MediaAudio.LoadedBehavior = MediaState.Manual;
+                   MediaAudio.Volume = 100;
+                   MediaAudio.Play();
+               })
+            );
         }
 
         async void ShowResultAndCapture(float smilingPercent, Mat matFrame)
