@@ -37,11 +37,10 @@ namespace SmileAlert
         private void Window_ContentRendered(object sender, EventArgs e)
         {
             // 音声ファイルをロードします。
-            MediaAudio.LoadedBehavior = MediaState.Stop;
-            MediaAudio.Source = new Uri(@"<音声ファイル名>", UriKind.Relative);
+            // MediaAudio.LoadedBehavior = MediaState.Stop;
             // 音声再生
             // MediaAudio.LoadedBehavior = MediaState.Manual;
-            // MediaAudio.Play();
+            MediaAudio.Play();
             // 音声停止
             // MediaAudio.Stop();
         }
@@ -75,10 +74,6 @@ namespace SmileAlert
                     var bytesImg = matFrame.ToBytes();
                     var base64Img = Convert.ToBase64String(bytesImg);
 
-                    /*
-                     * HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
-                     * URIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら送れる
-                     */
                     Dictionary<String, String> formDict = new Dictionary<string, string>();
                     formDict.Add("api_key", API_KEY);
                     formDict.Add("api_secret", API_SECRET);
@@ -102,6 +97,10 @@ namespace SmileAlert
             });
         }
 
+        /*
+        * HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
+        * URIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら送れる
+        */
         StringContent uriEncodeWithDict(Dictionary<string, string> dict)
         {
             var encodedItems = dict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
