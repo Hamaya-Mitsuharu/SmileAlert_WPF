@@ -82,7 +82,7 @@ namespace SmileAlert
         * HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
         * URIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら送れる
         */
-        StringContent uriEncodeWithDict(string base64Img)
+        StringContent UriEncodeWithDict(string base64Img)
         {
             Dictionary<String, String> formDict = new Dictionary<string, string>();
             formDict.Add("api_key", API_KEY);
