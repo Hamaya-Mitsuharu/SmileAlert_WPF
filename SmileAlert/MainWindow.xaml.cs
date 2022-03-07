@@ -1,6 +1,4 @@
 ﻿using System;
-using System.IO;
-using System.Text;
 using System.Windows.Controls;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,15 +13,6 @@ using System.Diagnostics;
 
 namespace SmileAlert
 {
-    /*
-     * やること
-     * ・アプリデータの保存方法を調べる
-     * https://vdlz.xyz/Csharp/Csharp/FileIO/ReadWriteText.html
-     * ・笑顔率数値を記憶し、初期化時にスライダーを操作する
-     * ・alert.wavのパスを相対パスにする
-     * ・プロジェクトのビルド
-     */
-
     /// <summary>
     /// MainWindow.xaml の相互作用ロジック
     /// </summary>
@@ -32,44 +21,16 @@ namespace SmileAlert
         Mat matFrame;
         const string API_KEY = "gvtqsN4gF5kfSQwRm3bEbFYgSSsrLGwH";
         const string API_SECRET = "52HOOEt4fb1-JAI5kHjRDWNPSBkFOyK3";
-        const string saveFilePath = "E:/MyFiles/Projects/cSharp/SmileAlert/SmileAlert/Source/SaveTxt.txt";
 
         Task task;
         public MainWindow()
         {
             InitializeComponent();
-            task = CaptureAndSend();
+            task = CaptureAndSend(); // 非同期処理を開始
         }
 
         async Task CaptureAndSend()
         {
-            // 最後に設定したスライダーの値を読みだし、スライダーの初期値にする
-            String sliderValueStr = "";
-            try
-            {
-                using (StreamReader sr = File.OpenText(saveFilePath))
-                {
-                    while ((sliderValueStr = sr.ReadLine()) != null)
-                    {
-                        // Debug.Print(sliderValueStr);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-            }
-
-            if (sliderValueStr != null)
-            {
-                await Monitor.Dispatcher.BeginInvoke(
-                    new Action(() =>
-                    {
-                        ThresholdSlider.Value = float.Parse(sliderValueStr);
-                    })
-                );
-            }
-
             // １秒周期で非同期実行
             await Task.Run(async () =>
             {
@@ -106,7 +67,7 @@ namespace SmileAlert
 
                     string response = await PostIntoFacePP(client, encodedContent);
                     encodedContent.Dispose();
-
+                    
                     float smilingPercent = GetSmilingPercent(response);
                     if (smilingPercent < 0.0f) continue; // 顔が見つからない場合
 
@@ -219,7 +180,7 @@ namespace SmileAlert
         // 下記の MatToImageSource() メソッドに使う
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
         static extern bool DeleteObject(System.IntPtr hObject);
-
+        
         ImageSource MatToImageSource(Mat img)
         {
             // HBitmapに変換
@@ -245,20 +206,6 @@ namespace SmileAlert
         private void Slider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
         {
             SliderValue.Content = e.NewValue.ToString("F0");
-
-            // スライダーの値を保存しておき、起動時に呼び出す
-            try
-            {
-                using (FileStream fs = File.Create(saveFilePath))
-                {
-                    byte[] info = new UTF8Encoding(true).GetBytes(e.NewValue.ToString("F0"));
-                    fs.Write(info, 0, info.Length);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-            }
         }
     }
 }
