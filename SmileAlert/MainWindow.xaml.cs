@@ -58,12 +58,7 @@ namespace SmileAlert
                     var bytesImg = matFrame.ToBytes();
                     var base64Img = Convert.ToBase64String(bytesImg);
 
-                    Dictionary<String, String> formDict = new Dictionary<string, string>();
-                    formDict.Add("api_key", API_KEY);
-                    formDict.Add("api_secret", API_SECRET);
-                    formDict.Add("image_base64", base64Img);
-                    formDict.Add("return_attributes", "smiling");
-                    StringContent encodedContent = uriEncodeWithDict(formDict);
+                    StringContent encodedContent = uriEncodeWithDict();
 
                     string response = await PostIntoFacePP(client, encodedContent);
                     encodedContent.Dispose();
@@ -87,8 +82,14 @@ namespace SmileAlert
         * HttpClientのhttps通信ではformの「Content-Type = multipart/form-data」は送れない
         * URIエンコードしたformの「Content-Type = application/x-www-form-urlencoded」なら送れる
         */
-        StringContent uriEncodeWithDict(Dictionary<string, string> dict)
+        StringContent uriEncodeWithDict()
         {
+            Dictionary<String, String> formDict = new Dictionary<string, string>();
+            formDict.Add("api_key", API_KEY);
+            formDict.Add("api_secret", API_SECRET);
+            formDict.Add("image_base64", base64Img);
+            formDict.Add("return_attributes", "smiling");
+
             var encodedItems = dict.Select(i => WebUtility.UrlEncode(i.Key) + "=" + WebUtility.UrlEncode(i.Value));
             return new StringContent(String.Join("&", encodedItems), null, "application/x-www-form-urlencoded");
         }
