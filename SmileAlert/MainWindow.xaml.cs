@@ -1,8 +1,9 @@
 ﻿using System;
+using System.IO; // StreamReader
 using System.Windows.Controls;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Threading.Tasks; //  
 using System.Net;
 using System.Net.Http;
 using System.Windows.Media;
@@ -21,11 +22,24 @@ namespace SmileAlert
         Mat matFrame;
         const string API_KEY = "gvtqsN4gF5kfSQwRm3bEbFYgSSsrLGwH";
         const string API_SECRET = "52HOOEt4fb1-JAI5kHjRDWNPSBkFOyK3";
+        string thresholdTextPath = System.Environment.CurrentDirectory + "/threshold.txt";
+        int sliderCount = 0;
 
         Task task;
         public MainWindow()
         {
             InitializeComponent();
+
+            // 笑顔率のセーブデータを読み込み
+            ContentRendered += (s, e) =>
+            {
+                using (StreamReader sr = new StreamReader(thresholdTextPath))
+                {
+                    float threshold = float.Parse(sr.ReadToEnd());
+                    ThresholdSlider.Value = threshold;
+
+                }
+            };
             task = CaptureAndSend(); // 非同期処理を開始
         }
 
@@ -58,11 +72,11 @@ namespace SmileAlert
                     var bytesImg = matFrame.ToBytes();
                     var base64Img = Convert.ToBase64String(bytesImg);
 
-                    StringContent encodedContent = uriEncodeWithDict();
+                    StringContent encodedContent = UriEncodeWithDict(base64Img);
 
                     string response = await PostIntoFacePP(client, encodedContent);
                     encodedContent.Dispose();
-                    
+
                     float smilingPercent = GetSmilingPercent(response);
                     if (smilingPercent < 0.0f) continue; // 顔が見つからない場合
 
@@ -181,7 +195,7 @@ namespace SmileAlert
         // 下記の MatToImageSource() メソッドに使う
         [System.Runtime.InteropServices.DllImport("gdi32.dll")]
         static extern bool DeleteObject(System.IntPtr hObject);
-        
+
         ImageSource MatToImageSource(Mat img)
         {
             // HBitmapに変換
@@ -206,7 +220,16 @@ namespace SmileAlert
 
         private void Slider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
         {
-            SliderValue.Content = e.NewValue.ToString("F0");
+            var threshold = e.NewValue.ToString("F0");
+            SliderValue.Content = threshold;
+
+            // Slider_ValueChanged()は起動時に２回ほど呼ばれてしまう
+            // 起動時に書き込んでしまうのを防ぐ
+            if (sliderCount > 10)
+            {
+                File.WriteAllText(thresholdTextPath, threshold);
+            }
+            sliderCount++;
         }
     }
 }

@@ -14,7 +14,7 @@
         <Slider x:Name="ThresholdSlider"
                 TickPlacement="None"
                 Width="200" 
-                Value="50"
+                Value="30"
                 Minimum="0"
                 Maximum="100"
                 ValueChanged="Slider_ValueChanged"
