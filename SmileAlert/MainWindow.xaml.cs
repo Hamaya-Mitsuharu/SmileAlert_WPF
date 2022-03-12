@@ -225,7 +225,7 @@ namespace SmileAlert
 
             // Slider_ValueChanged()は起動時に２回ほど呼ばれてしまう
             // 起動時に書き込んでしまうのを防ぐ
-            if (sliderCount > 10)
+            if (sliderCount > 5)
             {
                 File.WriteAllText(thresholdTextPath, threshold);
             }
