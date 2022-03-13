@@ -9,7 +9,6 @@ using System.Net.Http;
 using System.Windows.Media;
 using OpenCvSharp;
 using OpenCvSharp.Extensions;
-using System.Threading;
 using System.Diagnostics;
 
 namespace SmileAlert
@@ -23,6 +22,7 @@ namespace SmileAlert
         const string API_KEY = "gvtqsN4gF5kfSQwRm3bEbFYgSSsrLGwH";
         const string API_SECRET = "52HOOEt4fb1-JAI5kHjRDWNPSBkFOyK3";
         string thresholdTextPath = System.Environment.CurrentDirectory + "/threshold.txt";
+        string alertPath = "E:/MyFiles/Projects/cSharp/SmileAlert/SmileAlert/Source/alert.wav";
         int sliderCount = 0;
 
         Task task;
@@ -33,11 +33,13 @@ namespace SmileAlert
             // 笑顔率のセーブデータを読み込み
             ContentRendered += (s, e) =>
             {
-                using (StreamReader sr = new StreamReader(thresholdTextPath))
+                if (File.Exists(thresholdTextPath))
                 {
-                    float threshold = float.Parse(sr.ReadToEnd());
-                    ThresholdSlider.Value = threshold;
-
+                    using (StreamReader sr = new StreamReader(thresholdTextPath))
+                    {
+                        float threshold = float.Parse(sr.ReadToEnd());
+                        ThresholdSlider.Value = threshold;
+                    }
                 }
             };
             task = CaptureAndSend(); // 非同期処理を開始
@@ -48,14 +50,27 @@ namespace SmileAlert
             // １秒周期で非同期実行
             await Task.Run(async () =>
             {
+                await ResultLabel.Dispatcher.BeginInvoke(
+                    new Action(() =>
+                    {
+                        ResultLabel.Content = "カメラ読み込み中...";
+                    })
+                );
                 // カメラキャプチャとHTTPリクエストの下準備
-                var capture = new VideoCapture();
+                var capture = new VideoCapture(0);
                 capture.Open(0);
                 if (!capture.IsOpened())
                 {
                     throw new Exception("capture initialization failed");
                 }
                 var client = new HttpClient();
+
+                await ResultLabel.Dispatcher.BeginInvoke(
+                    new Action(() =>
+                    {
+                         ResultLabel.Content = "キャプチャを開始します";
+                    })
+                );
 
                 while (true)
                 {
@@ -64,7 +79,7 @@ namespace SmileAlert
                     capture.Read(matFrame);
                     if (matFrame.Empty())
                     {
-                        Debug.Print("キャプチャ画像が空でした");
+                        // Debug.Print("キャプチャ画像が空でした");
                         continue;
                     }
 
@@ -78,17 +93,23 @@ namespace SmileAlert
                     encodedContent.Dispose();
 
                     float smilingPercent = GetSmilingPercent(response);
-                    if (smilingPercent < 0.0f) continue; // 顔が見つからない場合
+                    if (smilingPercent < 0.0f)
+                    {
+                        await ResultLabel.Dispatcher.BeginInvoke(
+                        new Action(() =>
+                            {
+                                ResultLabel.Content = "笑顔率：顔未検出";
+                            })
+                        );
+                        continue; // 顔が見つからない場合
+                    }
 
                     CheckSmilingPercent(smilingPercent);
-
                     ShowResultAndCapture(smilingPercent, matFrame);
 
-                    Thread.Sleep(3000);
+                    await Task.Delay(3000);
                 }
-                // -- whileループ終了 -- 
-                capture.Dispose();
-                client.Dispose();
+                
             });
         }
 
@@ -127,7 +148,7 @@ namespace SmileAlert
             var index = response.IndexOf("value");
             if (index == -1)
             {
-                Debug.Print("顔が見つかりませんでした");
+                // Debug.Print("顔が見つかりませんでした");
                 matFrame.Dispose();
                 return -1f;
             }
@@ -144,7 +165,7 @@ namespace SmileAlert
                 loopCnt++;
                 if (loopCnt > 10000)
                 {
-                    Debug.Print("異常：カンマが見つかりませんでした");
+                    // Debug.Print("異常：カンマが見つかりませんでした");
                     return -1f;
                 }
             }
@@ -163,9 +184,9 @@ namespace SmileAlert
                    // 笑顔率が閾値より小さい場合警告
                    if (smilingPercent >= ThresholdSlider.Value) return;
 
-                   Debug.Print("音を鳴らします");
+                   // Debug.Print("音を鳴らします");
                    MediaAudio.LoadedBehavior = MediaState.Stop;
-                   MediaAudio.Source = new Uri("E:/MyFiles/Projects/cSharp/SmileAlert/SmileAlert/Source/alert.wav");
+                   MediaAudio.Source = new Uri(alertPath);
                    MediaAudio.LoadedBehavior = MediaState.Manual;
                    MediaAudio.Volume = 100;
                    MediaAudio.Play();
@@ -187,7 +208,10 @@ namespace SmileAlert
             await Monitor.Dispatcher.BeginInvoke(
                new Action(() =>
                {
-                   Monitor.Source = MatToImageSource(matFrame);
+                   if (!matFrame.Empty())
+                   {
+                       Monitor.Source = MatToImageSource(matFrame);
+                   }
                })
             );
         }
